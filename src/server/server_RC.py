@@ -48,17 +48,44 @@ def main():
             if num_bytes > 0 :
                 image = connection.read(num_bytes)
                 print "Imagen leida. Tamaño [{}]".format(len(image))
-                #with open(os.path.join(path,str(images_read)+".jpeg"),"w") as f:
-                #    f.write(image)
                 images_read += 1
                 nparr = np.fromstring(image, np.uint8)
                 img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                cv2.imshow("Imagen de la Raspberry",img_np)
-                cv2.waitKey(15)
+                process_image(img_np)
                 
         print "Tiempo en procesar todas las imagenes: [{}]".format(time.time()-init_time)
         cv2.destroyAllWindows()
     s.close()
+
+def process_image(image):
+    # find the red color game in the image
+    upper = np.array([80, 80, 255])
+    lower = np.array([0, 0, 180])
+    mask = cv2.inRange(image, lower, upper)
+    cv2.imshow("Mascara",mask) 
+
+
+    # find contours in the masked image and keep the largest one
+    (_, cnts, _) = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    if len(cnts) > 0:
+        # keep the largest one
+        c = max(cnts, key=cv2.contourArea)
+ 
+        # approximate the contour
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.05 * peri, True)
+ 
+        # draw a green bounding box surrounding the red game
+        cv2.drawContours(image, [approx], -1, (0, 255, 0), 4)
+        
+        # obtain the centroid
+        M = cv2.moments(c)
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        cv2.circle(image,(cx,cy),2,[0,255,0])
+
+    cv2.imshow("Image", image)
+    cv2.waitKey(10)
 
 if __name__ == "__main__":
    main()
